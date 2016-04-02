@@ -28,6 +28,18 @@ dependencies {
     compile project(':lock-api')
     compile project(':timestamp-api')
     compile project(':atlasdb-config')
+    runtime(project(':atlasdb-cassandra')) {
+        exclude(module:'log4j-over-slf4j')
+        exclude(module:'jcl-over-slf4j')
+        exclude(module:'json-simple')
+        exclude(module:'metrics-core')
+        exclude(module:'logback-core')
+        exclude(module:'logback-classic')
+        exclude(module:'joda-time')
+        exclude(module:'snakeyaml')
+        exclude(module:'hibernate-validator')
+        exclude(module:'libthrift')
+    }
 
     testCompile 'com.palantir.docker.compose:docker-compose-rule:0.5.3'
     testCompile 'ch.qos.logback:logback-classic:1.1.7'
