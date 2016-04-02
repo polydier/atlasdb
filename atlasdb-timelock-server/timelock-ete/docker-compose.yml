@@ -1,5 +1,11 @@
 version: "2"
 services:
+  cassandra:
+    image: cassandra:2
+    environment:
+    - CASSANDRA_BROADCAST_ADDRESS=cassandra
+    - CASSANDRA_START_RPC=true
+
   timelock1:
     hostname: "timelock1"
     build: ..
@@ -7,6 +13,7 @@ services:
       - HOSTNAME=timelock1
     ports:
      - "3828"
+
   timelock2:
     hostname: "timelock2"
     build: ..
@@ -14,6 +21,7 @@ services:
       - HOSTNAME=timelock2
     ports:
      - "3828"
+
   timelock3:
     hostname: "timelock3"
     build: ..

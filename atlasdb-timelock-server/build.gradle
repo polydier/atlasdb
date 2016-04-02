@@ -2,14 +2,14 @@ buildscript {
     repositories { jcenter() }
     dependencies {
         classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
+        classpath 'com.palantir.gradle.javadist:gradle-java-distribution:0.5.2'
     }
 }
 
-
 apply from: "../gradle/shared.gradle"
 
+apply plugin: 'com.palantir.java-distribution'
 apply plugin: 'com.github.johnrengelman.shadow'
-
 apply plugin: 'org.inferred.processors'
 
 
@@ -47,10 +47,15 @@ configurations.matching({ it.name in ['compile', 'runtime'] }).all {
     }
 }
 
+distribution {
+    serviceName 'atlasdb-timelock'
+    mainClass 'com.palantir.atlasdb.timelock.server.TimeLockServer'
+    args 'server', 'var/conf/timelock.yml'
+}
 
 sourceCompatibility = '1.8'
 targetCompatibility = '1.8'
-version = "" // This is to generate a good shadowJar jar name
+version = "snapshot" // This is to generate a good shadowJar jar name
 
 // Configure the shadow jar task
 shadowJar {
