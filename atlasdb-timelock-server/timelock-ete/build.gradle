@@ -37,8 +37,8 @@ dependencies {
         exclude(module:'logback-classic')
         exclude(module:'joda-time')
         exclude(module:'snakeyaml')
-        exclude(module:'hibernate-validator')
         exclude(module:'libthrift')
+        exclude(module:'hibernate-validator')
     }
 
     testCompile 'com.palantir.docker.compose:docker-compose-rule:0.5.3'
@@ -53,5 +53,7 @@ configurations.matching({ it.name in ['compile', 'runtime'] }).all {
         force 'com.fasterxml.jackson.core:jackson-databind:' + libVersions.jackson
         force 'com.fasterxml.jackson.core:jackson-core:' + libVersions.jackson
         force 'org.apache.commons:commons-lang3:3.1'
+        force 'javax.validation:validation-api:1.1.0.Final'
+        force 'org.hibernate:hibernate-validator:4.3.0.Final'
     }
 }

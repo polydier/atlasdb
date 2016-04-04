@@ -16,7 +16,8 @@ atlasdb:
       - cassandra:9160
     ssl: false
     replicationFactor: 1
-    keyspace: timelock_ete
+    keyspace: timelockEte
+    safetyDisabled: true
   leader:
     quorumSize: 2
     learnerLogDir: var/data/paxosLog/learner1

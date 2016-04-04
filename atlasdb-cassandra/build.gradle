@@ -10,6 +10,7 @@ dependencies {
   compile('org.apache.cassandra:cassandra-all:' + libVersions.cassandra) {
     exclude(group: 'com.google.guava', module: 'guava')
     exclude(module: 'junit')
+    exclude(module: 'hibernate-validator')
   }
   compile('com.datastax.cassandra:cassandra-driver-core:' + libVersions.cassandra_driver_core) {
     exclude group: 'com.google.guava', module: 'guava'
