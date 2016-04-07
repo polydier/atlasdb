@@ -13,6 +13,8 @@
   <publications>
     <artifact name="atlasdb-dbkvs" type="jar" conf="default"/>
     <artifact name="atlasdb-dbkvs" type="source" ext="zip" conf="default"/>
+    <artifact name="atlasdb-dbkvs-test" type="jar" conf="test"/>
+    <artifact name="atlasdb-dbkvs-test" type="source" ext="zip" conf="test"/>
   </publications>
   <dependencies>
     <dependency org="junit" name="junit" rev="4.11"
@@ -26,6 +28,12 @@
     </dependency>
     <dependency org="palantir" name="timestamp-impl" rev="3.13.4.2-develop.+"
                 transitive="true" conf="test-&gt;test;default-&gt;default">
+    </dependency>
+    <dependency org="palantir" name="ptdatabase" rev="3.13.4.2-develop.+"
+                transitive="true" conf="test-&gt;test;default-&gt;default">
+    </dependency>
+    <dependency org="palantir" name="ptcommons-testutils" rev="3.13.4.2-develop.+"
+                transitive="true" conf="test-&gt;test">
     </dependency>
   </dependencies>
 </ivy-module>
