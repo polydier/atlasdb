@@ -44,7 +44,6 @@ public class CassandraTimestampTest {
                                 .mutationBatchCount(10000)
                                 .mutationBatchSizeBytes(10000000)
                                 .fetchBatchCount(1000)
-                                .safetyDisabled(true)
                                 .autoRefreshNodes(false)
                                 .build()));
         kv.initializeFromFreshInstance();

@@ -73,11 +73,6 @@ public abstract class CassandraKeyValueServiceConfig implements KeyValueServiceC
     public int fetchBatchCount() { return 5000; }
 
     @Value.Default
-    public boolean safetyDisabled() {
-        return false;
-    }
-
-    @Value.Default
     public boolean autoRefreshNodes() {
         return true;
     }

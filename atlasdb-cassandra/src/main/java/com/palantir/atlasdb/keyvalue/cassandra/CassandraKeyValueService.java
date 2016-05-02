@@ -164,8 +164,8 @@ public class CassandraKeyValueService extends AbstractKeyValueService {
     }
 
     protected void init() {
-        Set<String> dcs = clientPool.runOneTimeStartupChecks();
-        lowerConsistencyWhenSafe(dcs);
+        clientPool.runOneTimeStartupChecks();
+        lowerConsistencyWhenSafe();
         upgradeFromOlderInternalSchema();
         CassandraKeyValueServices.failQuickInInitializationIfClusterAlreadyInInconsistentState(clientPool, configManager.getConfig());
     }
@@ -214,10 +214,9 @@ public class CassandraKeyValueService extends AbstractKeyValueService {
     }
 
     // if RF=2 then write consistency of quorum is effectively write consistency ALL so we can read at consistency one
-    private void lowerConsistencyWhenSafe(Set<String> dcs) {
+    private void lowerConsistencyWhenSafe() {
         Map<String, String> strategyOptions;
         CassandraKeyValueServiceConfig config = configManager.getConfig();
-
         try {
             KsDef ksDef = clientPool.runWithRetry(new FunctionCheckedException<Client, KsDef, TException>() {
                 @Override
@@ -225,19 +224,15 @@ public class CassandraKeyValueService extends AbstractKeyValueService {
                     return client.describe_keyspace(config.keyspace());
                 }
             });
-            strategyOptions = Maps.newHashMap(ksDef.getStrategy_options());
 
-            if (dcs.size() == 1) {
-                String dc = dcs.iterator().next();
-                if (strategyOptions.get(dc) != null) {
-                    int currentRF = Integer.parseInt(strategyOptions.get(dc));
-                    if (currentRF == config.replicationFactor()) {
-                        if (currentRF == 2) {
-                            log.info("Setting Read Consistency to ONE, as cluster has only one datacenter at RF2.");
-                            readConsistency = ConsistencyLevel.ONE;
-                        }
-                    }
-                }
+            strategyOptions = Maps.newHashMap(ksDef.getStrategy_options());
+            boolean allRf2 = true;
+            for (String rf : strategyOptions.values()) {
+                allRf2 &= rf == null || Integer.parseInt(rf) == 2;
+            }
+            if (allRf2) {
+                log.info("Setting Read Consistency to ONE, as all cluster's datacenter(s) are RF2.");
+                readConsistency = ConsistencyLevel.ONE;
             }
         } catch (InvalidRequestException e) {
             return;

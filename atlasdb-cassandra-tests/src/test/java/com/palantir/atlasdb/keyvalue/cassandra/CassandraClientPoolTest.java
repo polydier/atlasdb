@@ -55,7 +55,6 @@ public class CassandraClientPoolTest {
                                 .mutationBatchCount(10000)
                                 .mutationBatchSizeBytes(10000000)
                                 .fetchBatchCount(1000)
-                                .safetyDisabled(true)
                                 .autoRefreshNodes(true)
                                 .build()));
         kv.initializeFromFreshInstance();

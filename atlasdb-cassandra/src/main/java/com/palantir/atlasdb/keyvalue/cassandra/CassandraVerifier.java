@@ -51,7 +51,7 @@ public class CassandraVerifier {
 
     private static final Logger log = LoggerFactory.getLogger(CassandraVerifier.class);
 
-    static Set<String> validateAndUpdateCassandraSetup(Cassandra.Client client, KsDef ks, boolean freshInstance, int desiredRf, boolean safetyDisabled)
+    static void validateCassandraSetup(Cassandra.Client client, KsDef ks, boolean freshInstance, int desiredRf)
             throws InvalidRequestException, SchemaDisagreementException, TException {
 
         // check for test keyspace and create it if it doesn't exist
@@ -73,41 +73,37 @@ public class CassandraVerifier {
             }
         }
 
-        // always check datacenter configuration
-        CassandraVerifier.sanityCheckDatacenters(dataCenterToRack, hosts, desiredRf, safetyDisabled);
-        Set<String> dcs = dataCenterToRack.keySet();
-
-        // if new instance we can just outright set RF to the desired
         if (freshInstance) {
             ks.setStrategy_options(Maps2.createConstantValueMap(dataCenterToRack.keySet(), String.valueOf(desiredRf)));
-            return dcs;
         }
 
-        CassandraVerifier.checkAndSetReplicationFactor(client, ks, dataCenterToRack, freshInstance, desiredRf, safetyDisabled);
-        
-        return dcs;
+        CassandraVerifier.checkDatacenters(dataCenterToRack, hosts, desiredRf);
+        CassandraVerifier.checkReplicationStrategy(ks, dataCenterToRack.keySet(), desiredRf);
     }
 
-    static Set<String> sanityCheckDatacenters(Multimap<String, String> dataCenterToRack, Set<String> hosts, int desiredRf,
-            boolean safetyDisabled) throws InvalidRequestException, TException {
+    static void checkDatacenters(Multimap<String, String> dataCenterToRack, Set<String> hosts, int desiredRf)
+            throws InvalidRequestException, TException {
         if (dataCenterToRack.size() == 1) {
             String dc = dataCenterToRack.keySet().iterator().next();
             String rack = dataCenterToRack.values().iterator().next();
             if (dc.equals(CassandraConstants.DEFAULT_DC) && rack.equals(CassandraConstants.DEFAULT_RACK) && desiredRf > 1) {
                 // We don't allow greater than RF=1 because they didn't set up their network.
-                logErrorOrThrow("The cassandra cluster is not set up to be datacenter and rack aware.  " +
-                        "Please set this up before running with a replication factor higher than 1.", safetyDisabled);
+                throw new RuntimeException("The cassandra cluster is not set up to be datacenter and rack aware.  " +
+                        "Please set this up before running with a replication factor higher than 1.");
 
             }
             if (dataCenterToRack.values().size() < desiredRf && hosts.size() > desiredRf) {
-                logErrorOrThrow("The cassandra cluster only has one DC, " +
+                throw new RuntimeException("The cassandra cluster only has one DC, " +
                         "and is set up with less racks than the desired number of replicas, " +
                         "and there are more hosts than the replication factor. " +
-                        "It is very likely that your rack configuration is incorrect and replicas would not be placed correctly for the failure tolerance you want.", safetyDisabled);
+                        "It is very likely that your rack configuration is incorrect and replicas would not be placed correctly for the failure tolerance you want.");
+            }
+            if (hosts.size() < desiredRf) {
+                throw new RuntimeException(String.format("The cassandra cluster only has %d nodes, and the desired replication " +
+                        "factor of %d is greater than that.  Your replication factor is likely incorrect for your setup.",
+                        hosts.size(), desiredRf));
             }
         }
-
-        return dataCenterToRack.keySet();
     }
 
     static void sanityCheckTableName(TableReference tableRef) {
@@ -117,9 +113,12 @@ public class CassandraVerifier {
                 || tableName.startsWith(AtlasDbConstants.NAMESPACE_PREFIX), "invalid tableName: " + tableName);
     }
 
-    static void logErrorOrThrow(String errorMessage, boolean safetyDisabled) {
-        String safetyMessage = " This would have normally resulted in Palantir exiting, however safety checks have been disabled.";
-        if (safetyDisabled) {
+    // We don't have an established strategy for configuring and validating multi-datacenter deployments,
+    // so in those cases log the error and continue instead of throwing it
+    static void logErrorOrThrow(String errorMessage, int numDcs) {
+        String safetyMessage = " This would have normally resulted in Palantir exiting, however this "
+                + "check was disabled because you have multiple datacenters in your cassandra cluster.";
+        if (numDcs > 1) {
             log.error(errorMessage + safetyMessage);
         } else {
             throw new IllegalStateException(errorMessage);
@@ -131,104 +130,70 @@ public class CassandraVerifier {
         if (!CassandraConstants.ALLOWED_PARTITIONERS.contains(partitioner)) {
             String errorMessage = String.format("Invalid partitioner. Allowed: %s, but partitioner is: %s",
                         CassandraConstants.ALLOWED_PARTITIONERS, partitioner);
-            logErrorOrThrow(errorMessage, config.safetyDisabled());
+            throw new RuntimeException(errorMessage);
         }
     }
 
-    static Set<String> ensureKeyspaceExistsAndIsUpToDate(CassandraClientPool clientPool, CassandraKeyValueServiceConfig config)
+    static void ensureKeyspaceExistsAndIsUpToDate(CassandraClientPool clientPool, CassandraKeyValueServiceConfig config)
             throws InvalidRequestException, TException, SchemaDisagreementException {
-        Set<String> dcs;
         try {
-            dcs = clientPool.run(new FunctionCheckedException<Cassandra.Client, Set<String>, TException>() {
+            clientPool.run(new FunctionCheckedException<Cassandra.Client, Void, TException>() {
                 @Override
-                public Set<String> apply(Cassandra.Client client) throws TException {
-                    KsDef originalKsDef = client.describe_keyspace(config.keyspace());
-                    KsDef modifiedKsDef = originalKsDef.deepCopy();
-                    Set<String> dcs = CassandraVerifier.validateAndUpdateCassandraSetup(client, modifiedKsDef,
-                            false, config.replicationFactor(), config.safetyDisabled());
-
-                    if (!modifiedKsDef.equals(originalKsDef)) {
-                        modifiedKsDef.setCf_defs(ImmutableList.<CfDef>of()); // system_update_keyspace needs CfDefs to be set
-                        client.system_update_keyspace(modifiedKsDef);
-                        CassandraKeyValueServices.waitForSchemaVersions(
-                                client, "(updating the existing keyspace)", config.schemaMutationTimeoutMillis());
-                    }
-
-                    return dcs;
+                public Void apply(Cassandra.Client client) throws TException {
+                    KsDef ks = client.describe_keyspace(config.keyspace());
+                    CassandraVerifier.validateCassandraSetup(client, ks,
+                            false, config.replicationFactor());
+                    return null;
                 }
             });
-            return dcs;
-        } catch (ClientCreationFailedException e) { // Can't use the pool yet because it sets the keyspace of that connection but the keyspace doesn't exist yet
+        } catch (ClientCreationFailedException e) { // fresh instance
             for (InetSocketAddress host : config.servers()) { // try until we find a server that works
                 try {
                     Client client = CassandraClientFactory.getClientInternal(
                             host, config.ssl(), config.socketTimeoutMillis(), config.socketQueryTimeoutMillis());
                     KsDef ks = new KsDef(config.keyspace(), CassandraConstants.NETWORK_STRATEGY, ImmutableList.<CfDef>of());
-                    dcs = CassandraVerifier.validateAndUpdateCassandraSetup(client, ks, true, config.replicationFactor(), config.safetyDisabled());
+                    CassandraVerifier.validateCassandraSetup(client, ks, true, config.replicationFactor());
 
                     ks.setDurable_writes(true);
                     client.system_add_keyspace(ks);
                     CassandraKeyValueServices.waitForSchemaVersions(client, "(adding the initial empty keyspace)", config.schemaMutationTimeoutMillis());
 
                     // if we got this far, we're done
-                    return dcs;
+                    return;
                 } catch (Exception f) {
                     throw new TException(f);
                 }
             }
-            throw new RuntimeException("Unable to ensure that atlas cassandra keyspace exists");
         }
     }
 
-    static void checkAndSetReplicationFactor(Cassandra.Client client, KsDef ks, Multimap<String, String> dataCenterToRack,
-            boolean freshInstance, int desiredRf, boolean safetyDisabled) throws TException {
-        final Set<String> dcs = dataCenterToRack.keySet();
+    // Disallow SimpleStrategy (i.e. only allow NetworkTopologyStrategy)
+    // We need to worry about users altering replication levels without proper repairs/maintenance.
+    static void checkReplicationStrategy(KsDef ks, Set<String> dcs, int desiredRf) {
         if (CassandraConstants.SIMPLE_STRATEGY.equals(ks.getStrategy_class())) {
-            CassandraVerifier.checkAndUpdateSimpleStrategy(client, ks, dataCenterToRack, desiredRf, safetyDisabled);
-        }
-
-        Map<String, String> strategyOptions = Maps.newHashMap(ks.getStrategy_options());
-        for (String dc : dcs) {
-            if (strategyOptions.get(dc) == null) {
-                logErrorOrThrow("The datacenter for this cassandra cluster is invalid. " +
-                        " failed dc: " + dc +
-                        "  strategyOptions: " + strategyOptions, safetyDisabled);
-            }
-        }
-
-        // We need to worry about user not running repair and user skipping replication levels.
-        int currentRF = Integer.parseInt(strategyOptions.get(dcs.iterator().next()));
-        if (currentRF != desiredRf) {
-            throw new UnsupportedOperationException("Your current Cassandra keyspace (" + ks.getName() +
-                    ") has a replication factor not matching your Atlas Cassandra configuration. " +
-                    "Change them to match, but be mindful of what steps you'll need to " +
-                    "take to correctly repair or cleanup existing data in your cluster.");
-        }
-    }
-
-    /*
-     * A unique set of checks for cassandra clusters running with SimpleStrategy (as
-     * opposed to NetworkTopologyStrategy) for replica placement/distribution
-     */
-    static void checkAndUpdateSimpleStrategy(Cassandra.Client client, KsDef ks, Multimap<String, String> dataCenterToRack,
-            int desiredRf, boolean safetyDisabled) throws InvalidRequestException, TException {
-        int currentRF = Integer.parseInt(ks.getStrategy_options().get(CassandraConstants.REPLICATION_FACTOR_OPTION));
-        String errorMessage = "This cassandra cluster is running using the simple partitioning strategy.  " +
-                "This partitioner is not rack aware and is not intended for use on prod.  " +
-                "This will have to be fixed by manually configuring the network partitioner " +
-                "and running the appropriate repairs.";
-        if (currentRF != 1) {
-            logErrorOrThrow(errorMessage, safetyDisabled);
+            String errorMessage = "This cassandra cluster is running using the simple partitioning strategy.  " +
+                    "This partitioner is not rack aware and is not intended for use on prod.  " +
+                    "This will have to be fixed by manually configuring the network partitioner " +
+                    "and running the appropriate repairs.";
+            throw new RuntimeException(errorMessage);
         }
         
-        // Automatically convert RF=1 to look like network partitioner.
-        Set<String> dcs = dataCenterToRack.keySet();
-        if (dcs.size() > 1) {
-            logErrorOrThrow(errorMessage, safetyDisabled);
-        }
-        if (!safetyDisabled) {
-            ks.setStrategy_class(CassandraConstants.NETWORK_STRATEGY);
-            ks.setStrategy_options(ImmutableMap.of(dcs.iterator().next(), "1"));
+        Map<String, String> strategyOptions = Maps.newHashMap(ks.getStrategy_options());
+        for (String dc : dcs) {
+            String so = strategyOptions.get(dc);
+            if (so == null) {
+                logErrorOrThrow("The datacenter for this cassandra cluster is invalid. " +
+                        " failed dc: " + dc +
+                        "  strategyOptions: " + strategyOptions, dcs.size());
+                continue;
+            }
+            int currentRF = Integer.parseInt(so);
+            if (currentRF != desiredRf) {
+                throw new UnsupportedOperationException("Your current Cassandra keyspace (" + ks.getName() +
+                        ") has a replication factor not matching your Atlas Cassandra configuration. " +
+                        "Change them to match, but be mindful of what steps you'll need to " +
+                        "take to correctly repair or cleanup existing data in your cluster.");
+            }
         }
     }
 }

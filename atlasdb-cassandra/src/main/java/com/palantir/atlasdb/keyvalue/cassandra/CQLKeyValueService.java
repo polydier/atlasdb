@@ -258,12 +258,8 @@ public class CQLKeyValueService extends AbstractKeyValueService {
 
         final CassandraKeyValueServiceConfig config = configManager.getConfig();
         String partitioner = metadata.getPartitioner();
-        if (!config.safetyDisabled()) {
-            Validate.isTrue(
-                    CassandraConstants.ALLOWED_PARTITIONERS.contains(partitioner),
+        Validate.isTrue(CassandraConstants.ALLOWED_PARTITIONERS.contains(partitioner),
                     "partitioner is: " + partitioner);
-        }
-
 
         Set<Peer> peers = CQLKeyValueServices.getPeers(session);
 
