@@ -92,7 +92,7 @@ public class CassandraKeyValueServices {
      * This is a request from pbrown / FDEs; basically it's a pain to do DB surgery to get out of failed patch upgrades, the majority of which requires schema mutations; they would find it preferable to stop before starting the actual patch upgrade / setting APPLYING state.
      */
     static void failQuickInInitializationIfClusterAlreadyInInconsistentState(CassandraClientPool clientPool, CassandraKeyValueServiceConfig config) {
-        if (config.safetyDisabled()) {
+        if (config.safetyDisabled()) {  //TODO(tpetracca): Does it even make sense to have this.  This isn't like you're doing a stupid config, it will straight up fail in this case otherwise so why not fail fast
             log.error("Skipped checking the cassandra cluster during initialization, because safety checks are disabled. Please re-enable safety checks when you are outside of your unusual migration period.");
             return;
         }

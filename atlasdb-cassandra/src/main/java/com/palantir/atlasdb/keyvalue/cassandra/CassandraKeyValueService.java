@@ -164,8 +164,8 @@ public class CassandraKeyValueService extends AbstractKeyValueService {
     }
 
     protected void init() {
-        clientPool.runOneTimeStartupChecks();
-        lowerConsistencyWhenSafe();
+        Set<String> dcs = clientPool.runOneTimeStartupChecks();
+        lowerConsistencyWhenSafe(dcs);
         upgradeFromOlderInternalSchema();
         CassandraKeyValueServices.failQuickInInitializationIfClusterAlreadyInInconsistentState(clientPool, configManager.getConfig());
     }
@@ -213,18 +213,12 @@ public class CassandraKeyValueService extends AbstractKeyValueService {
         }
     }
 
-    private void lowerConsistencyWhenSafe() {
-        Set<String> dcs;
+    // if RF=2 then write consistency of quorum is effectively write consistency ALL so we can read at consistency one
+    private void lowerConsistencyWhenSafe(Set<String> dcs) {
         Map<String, String> strategyOptions;
         CassandraKeyValueServiceConfig config = configManager.getConfig();
 
         try {
-            dcs = clientPool.runWithRetry(new FunctionCheckedException<Client, Set<String>, TException>() {
-                @Override
-                public Set<String> apply(Client client) throws TException {
-                    return CassandraVerifier.sanityCheckDatacenters(client, config.replicationFactor(), config.safetyDisabled());
-                }
-            });
             KsDef ksDef = clientPool.runWithRetry(new FunctionCheckedException<Client, KsDef, TException>() {
                 @Override
                 public KsDef apply(Client client) throws TException {

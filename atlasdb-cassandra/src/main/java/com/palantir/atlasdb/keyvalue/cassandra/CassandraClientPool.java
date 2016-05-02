@@ -247,7 +247,7 @@ public class CassandraClientPool {
         }
     }
 
-    public void runOneTimeStartupChecks() {
+    public Set<String> runOneTimeStartupChecks() {
         final FunctionCheckedException<Cassandra.Client, Void, Exception> healthChecks = new FunctionCheckedException<Cassandra.Client, Void, Exception>() {
             @Override
             public Void apply(Cassandra.Client client) throws Exception {
@@ -265,13 +265,13 @@ public class CassandraClientPool {
         };
 
         try {
-            CassandraVerifier.ensureKeyspaceExistsAndIsUpToDate(this, config);
+            Set<String> dcs = CassandraVerifier.ensureKeyspaceExistsAndIsUpToDate(this, config);
 
             for (InetSocketAddress liveHost : Sets.difference(currentPools.keySet(), blacklistedHosts.keySet())) {
                 runOnHost(liveHost, healthChecks);
                 runOnHost(liveHost, createInternalMetadataTable);
             }
-
+            return dcs;
         } catch (Exception e) {
             log.error("Startup checks failed.");
             throw new RuntimeException(e);
