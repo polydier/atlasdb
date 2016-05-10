@@ -26,6 +26,7 @@ checkstyle {
 }
 
 tasks.withType(FindBugs) {
+  excludeFilter = file("$rootDir/config/findbugs/excludeFilter.xml")
   reports {
     xml.enabled false
     html.enabled true
