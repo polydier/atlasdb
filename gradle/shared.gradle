@@ -2,6 +2,7 @@ apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'eclipse'
 apply plugin: 'checkstyle'
+apply plugin: 'findbugs'
 apply plugin: 'jacoco-coverage'
 apply plugin: 'com.github.hierynomus.license'
 
@@ -22,6 +23,13 @@ repositories {
 checkstyle {
     toolVersion = 6.17
     configFile rootProject.file('config/checkstyle/checkstyle.xml')
+}
+
+tasks.withType(FindBugs) {
+  reports {
+    xml.enabled false
+    html.enabled true
+  }
 }
 
 apply from: rootProject.file('gradle/versions.gradle')
