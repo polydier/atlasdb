@@ -71,7 +71,7 @@ public class PaxosProposal implements Serializable {
         final int prime = 31;
         int result = 1;
         result = prime * result + ((id == null) ? 0 : id.hashCode());
-        result = prime * result + ((val == null) ? 0 : val.hashCode());
+        result = prime * result + val.hashCode();
         return result;
     }
 
@@ -94,14 +94,7 @@ public class PaxosProposal implements Serializable {
         } else if (!id.equals(other.id)) {
             return false;
         }
-        if (val == null) {
-            if (other.val != null) {
-                return false;
-            }
-        } else if (!val.equals(other.val)) {
-            return false;
-        }
-        return true;
+        return val.equals(other.val);
     }
 
     @Override

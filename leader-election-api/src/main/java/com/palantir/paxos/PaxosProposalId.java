@@ -82,8 +82,7 @@ public class PaxosProposalId implements Comparable<PaxosProposalId>, Serializabl
         final int prime = 31;
         int result = 1;
         result = prime * result + (int) (number ^ (number >>> 32));
-        result = prime * result
-                + ((proposerUUID == null) ? 0 : proposerUUID.hashCode());
+        result = prime * result + proposerUUID.hashCode();
         return result;
     }
 
@@ -99,17 +98,7 @@ public class PaxosProposalId implements Comparable<PaxosProposalId>, Serializabl
             return false;
         }
         PaxosProposalId other = (PaxosProposalId) obj;
-        if (number != other.number) {
-            return false;
-        }
-        if (proposerUUID == null) {
-            if (other.proposerUUID != null) {
-                return false;
-            }
-        } else if (!proposerUUID.equals(other.proposerUUID)) {
-            return false;
-        }
-        return true;
+        return number == other.number && proposerUUID.equals(other.proposerUUID);
     }
 
     @Override

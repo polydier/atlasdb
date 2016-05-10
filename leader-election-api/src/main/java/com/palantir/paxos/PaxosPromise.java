@@ -103,8 +103,7 @@ public class PaxosPromise implements Comparable<PaxosPromise>, PaxosResponse {
                 * result
                 + ((lastAcceptedValue == null) ? 0
                 : lastAcceptedValue.hashCode());
-        result = prime * result
-                + ((promisedId == null) ? 0 : promisedId.hashCode());
+        result = prime * result + promisedId.hashCode();
         return result;
     }
 
@@ -137,14 +136,7 @@ public class PaxosPromise implements Comparable<PaxosPromise>, PaxosResponse {
         } else if (!lastAcceptedValue.equals(other.lastAcceptedValue)) {
             return false;
         }
-        if (promisedId == null) {
-            if (other.promisedId != null) {
-                return false;
-            }
-        } else if (!promisedId.equals(other.promisedId)) {
-            return false;
-        }
-        return true;
+        return promisedId.equals(other.promisedId);
     }
 
     @Override
