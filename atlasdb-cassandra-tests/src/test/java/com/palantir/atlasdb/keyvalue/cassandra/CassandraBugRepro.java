@@ -15,6 +15,9 @@
  */
 package com.palantir.atlasdb.keyvalue.cassandra;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsCollectionWithSize.hasSize;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Optional;
@@ -32,7 +35,6 @@ import com.google.common.collect.ConcurrentHashMultiset;
 import com.palantir.atlasdb.cassandra.CassandraKeyValueServiceConfig;
 import com.palantir.atlasdb.cassandra.ImmutableCassandraKeyValueServiceConfig;
 import com.palantir.docker.compose.DockerComposition;
-import com.palantir.docker.compose.configuration.ProjectName;
 import com.palantir.docker.compose.connection.DockerPort;
 import com.palantir.docker.compose.connection.waiting.HealthCheck;
 import com.palantir.docker.compose.connection.waiting.SuccessOrFailure;
@@ -46,7 +48,6 @@ public class CassandraBugRepro {
     public static final DockerComposition composition = DockerComposition.of("src/test/resources/docker-compose.yml")
             .waitingForHostNetworkedPort(THRIFT_PORT_NUMBER, toBeOpen())
             .saveLogsTo("container-logs")
-            .projectName(ProjectName.fromString("cassandra"))
             .build();
 
     static InetSocketAddress CASSANDRA_THRIFT_ADDRESS;
@@ -92,9 +93,7 @@ public class CassandraBugRepro {
 
         System.out.println(ids.elementSet());
 
-        while(true) { }
-
-//        assertThat(ids.elementSet().size(), is(1));
+        assertThat(ids.elementSet(), hasSize(1));
     }
 
     private Optional<String> createTable(Cassandra.Client client, String table) {
