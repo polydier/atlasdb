@@ -1,4 +1,4 @@
-# Cassandra storage config YAML 
+# Cassandra storage config YAML
 
 # NOTE:
 #   See http://wiki.apache.org/cassandra/StorageConfiguration for
@@ -83,7 +83,6 @@ authorizer: AllowAllAuthorizer
 #
 # - CassandraRoleManager stores role data in the system_auth keyspace. Please
 #   increase system_auth keyspace replication factor if you use this role manager.
-role_manager: CassandraRoleManager
 
 # Validity period for roles cache (fetching permissions can be an
 # expensive operation depending on the authorizer). Granted roles are cached for
@@ -91,7 +90,6 @@ role_manager: CassandraRoleManager
 # here, become eligible for (async) reload.
 # Defaults to 2000, set to 0 to disable.
 # Will be disabled automatically for AllowAllAuthenticator.
-roles_validity_in_ms: 2000
 
 # Refresh interval for roles cache (if enabled).
 # After this interval, cache entries become eligible for refresh. Upon next
@@ -150,7 +148,7 @@ commitlog_directory: /var/lib/cassandra/commitlog
 #              remaining available sstables.  This means you WILL see obsolete
 #              data at CL.ONE!
 # ignore: ignore fatal errors and let requests fail, as in pre-1.2 Cassandra
-disk_failure_policy: die
+disk_failure_policy: stop
 
 # policy for commit disk failures:
 # die: shut down gossip and Thrift and kill the JVM, so the node can be replaced.
@@ -159,7 +157,7 @@ disk_failure_policy: die
 # stop_commit: shutdown the commit log, letting writes collect but
 #              continuing to service reads, as in pre-2.0.5 Cassandra
 # ignore: ignore fatal errors and let the batches fail
-commit_failure_policy: die
+commit_failure_policy: stop
 
 # Maximum size of the key cache in memory.
 #
@@ -234,14 +232,12 @@ row_cache_save_period: 0
 #
 # Default value is empty to make it "auto" (min(2.5% of Heap (in MB), 50MB)). Set to 0 to disable counter cache.
 # NOTE: if you perform counter deletes and rely on low gcgs, you should disable the counter cache.
-counter_cache_size_in_mb:
 
 # Duration in seconds after which Cassandra should
 # save the counter cache (keys only). Caches are saved to saved_caches_directory as
 # specified in this configuration file.
 #
 # Default is 7200 or 2 hours.
-counter_cache_save_period: 7200
 
 # Number of keys from the counter cache to save
 # Disabled by default, meaning all keys are going to be saved
@@ -319,7 +315,6 @@ seed_provider:
 # disk. "concurrent_reads" should be set to (16 * number_of_drives) in
 # order to allow the operations to enqueue low enough in the stack
 # that the OS and drives can reorder them. Same applies to
-# "concurrent_counter_writes", since counter writes read the current
 # values before incrementing and writing them back.
 #
 # On the other hand, since writes are almost never IO bound, the ideal
@@ -327,7 +322,6 @@ seed_provider:
 # your system; (8 * number_of_cores) is a good rule of thumb.
 concurrent_reads: 64
 concurrent_writes: 4096
-concurrent_counter_writes: 32
 
 # Total memory to use for sstable-reading buffers.  Defaults to
 # the smaller of 1/4 of heap or 512MB.
@@ -354,7 +348,6 @@ concurrent_counter_writes: 32
 #   heap_buffers:    on heap nio buffers
 #   offheap_buffers: off heap (direct) nio buffers
 #   offheap_objects: native memory, eliminating nio buffer heap overhead
-memtable_allocation_type: heap_buffers
 
 # Total space to use for commit logs on disk.
 #
@@ -382,13 +375,11 @@ memtable_allocation_type: heap_buffers
 # shrink their index summaries in order to meet this limit.  However, this
 # is a best-effort process. In extreme conditions Cassandra may need to use
 # more than this amount of memory.
-index_summary_capacity_in_mb:
 
 # How frequently index summaries should be resampled.  This is done
 # periodically to redistribute memory from the fixed-size pool to sstables
 # proportional their recent read rates.  Setting to -1 will disable this
 # process, leaving existing index summaries at their current sampling level.
-index_summary_resize_interval_in_minutes: 60
 
 # Whether to, when doing sequential writing, fsync() at intervals in
 # order to force the operating system to flush the dirty
@@ -474,7 +465,6 @@ start_rpc: true
 # (i.e. it will be based on the configured hostname of the node).
 #
 # Note that unlike listen_address, you can specify 0.0.0.0, but you must also
-# set broadcast_rpc_address to a value other than 0.0.0.0.
 #
 # For security reasons, you should not expose this port to the internet.  Firewall it if needed.
 #
@@ -491,9 +481,7 @@ rpc_port: 9160
 
 # RPC address to broadcast to drivers and other Cassandra nodes. This cannot
 # be set to 0.0.0.0. If left blank, this will be set to the value of
-# rpc_address. If rpc_address is set to 0.0.0.0, broadcast_rpc_address must
 # be set.
-# broadcast_rpc_address: 1.2.3.4
 
 # enable or disable keepalive on rpc/native connections
 rpc_keepalive: true
@@ -597,7 +585,6 @@ column_index_size_in_kb: 64
 batch_size_warn_threshold_in_kb: 4096
 
 # Fail any batch exceeding this value. 50kb (10x warn threshold) by default.
-batch_size_fail_threshold_in_kb: 32768
 
 # Number of simultaneous compactions to allow, NOT including
 # validation "compactions" for anti-entropy repair.  Simultaneous
@@ -624,13 +611,11 @@ batch_size_fail_threshold_in_kb: 32768
 compaction_throughput_mb_per_sec: 0
 
 # Log a warning when compacting partitions larger than this value
-compaction_large_partition_warning_threshold_mb: 100
 
 # When compacting, the replacement sstable(s) can be opened before they
 # are completely written, and used in place of the prior sstables for
 # any range that has been written. This helps to smoothly transfer reads 
 # between the sstables, reducing page cache churn and keeping hot rows hot
-sstable_preemptive_open_interval_in_mb: 50
 
 # Throttles all outbound streaming file transfers on this node to the
 # given total throughput in Mbps. This is necessary because Cassandra does
@@ -652,7 +637,6 @@ range_request_timeout_in_ms: 20000
 # How long the coordinator should wait for writes to complete
 write_request_timeout_in_ms: 20000
 # How long the coordinator should wait for counter writes to complete
-counter_write_request_timeout_in_ms: 5000
 # How long a coordinator should continue to retry a CAS operation
 # that contends with other proposals for the same row
 cas_contention_timeout_in_ms: 5000
@@ -848,19 +832,15 @@ internode_compression: dc
 inter_dc_tcp_nodelay: false
 
 # TTL for different trace types used during logging of the repair process.
-tracetype_query_ttl: 86400
-tracetype_repair_ttl: 604800
 
 # UDFs (user defined functions) are disabled by default.
 # As of Cassandra 2.2, there is no security manager or anything else in place that
 # prevents execution of evil code. CASSANDRA-9402 will fix this issue for Cassandra 3.0.
 # This will inherently be backwards-incompatible with any 2.2 UDF that perform insecure
 # operations such as opening a socket or writing to the filesystem.
-enable_user_defined_functions: false
 
 # The default Windows kernel timer and scheduling resolution is 15.6ms for power conservation.
 # Lowering this value on Windows can provide much tighter latency and better throughput, however
 # some virtualized environments may see a negative performance impact from changing this setting
 # below their system default. The sysinternals 'clockres' tool can confirm your system's default
 # setting.
-windows_timer_interval: 1
