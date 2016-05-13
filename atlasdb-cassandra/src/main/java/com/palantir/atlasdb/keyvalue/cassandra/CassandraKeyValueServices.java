@@ -15,6 +15,7 @@
  */
 package com.palantir.atlasdb.keyvalue.cassandra;
 
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Arrays;
@@ -317,6 +318,17 @@ public class CassandraKeyValueServices {
             return true;
         }
         return false;
+    }
+
+    /*
+     * The only time we're truncating the locks table is because we assume we've hit CASSANDRA-9933 and
+     * thus we're not allowed or able to create the CKVS so we have to use a 1-off client instead of the pool
+     */
+    public static void truncateLocksTable(CassandraKeyValueServiceConfig config) throws TException {
+        InetSocketAddress host = config.servers().iterator().next(); // all nodes need to be up for this to be successful so we can grab whichever
+        Client client = CassandraClientFactory.getClientInternal(host, config.ssl(), config.socketTimeoutMillis(), config.socketQueryTimeoutMillis());
+        client.set_keyspace(config.keyspace());
+        CassandraKeyValueService.truncateInternal(client, CassandraConstants.LOCK_TABLE);
     }
 
 }

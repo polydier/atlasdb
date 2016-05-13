@@ -21,6 +21,7 @@ import com.palantir.atlasdb.cli.command.CleanTransactionRange;
 import com.palantir.atlasdb.cli.command.KvsMigrationCommand;
 import com.palantir.atlasdb.cli.command.SweepCommand;
 import com.palantir.atlasdb.cli.command.TimestampCommand;
+import com.palantir.atlasdb.cli.command.TruncateLocksTable;
 
 import io.airlift.airline.Cli;
 import io.airlift.airline.Help;
@@ -36,7 +37,8 @@ public class AtlasCli {
                         TimestampCommand.class,
                         CleanTransactionRange.class,
                         SweepCommand.class,
-                        KvsMigrationCommand.class);
+                        KvsMigrationCommand.class,
+                        TruncateLocksTable.class);
         return builder.build();
     }
 

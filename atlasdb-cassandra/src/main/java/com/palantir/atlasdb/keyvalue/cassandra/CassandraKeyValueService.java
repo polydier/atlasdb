@@ -785,7 +785,7 @@ public class CassandraKeyValueService extends AbstractKeyValueService {
         }
     }
 
-    private void truncateInternal(Client client, TableReference tableRef) throws TException {
+    public static void truncateInternal(Client client, TableReference tableRef) throws TException {
         for (int tries = 1; tries <= CassandraConstants.MAX_TRUNCATION_ATTEMPTS; tries++) {
             boolean successful = true;
             try {
