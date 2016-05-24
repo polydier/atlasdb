@@ -38,14 +38,18 @@ public final class TempFileUtils {
     public static File createTempFile(String prefix, String suffix) throws IOException {
         ensureTempDirectoryExists();
         byte[] bytes = generateRandomBytes(32);
-        return File.createTempFile(prefix + bytesToHex(bytes), suffix);
+        File tempFile = File.createTempFile(prefix + bytesToHex(bytes), suffix);
+        tempFile.deleteOnExit();
+        return tempFile;
     }
 
     public static File createTempFile(String prefix, String suffix, File directory)
             throws IOException {
         ensureTempDirectoryExists();
         byte[] bytes = generateRandomBytes(32);
-        return File.createTempFile(prefix + bytesToHex(bytes), suffix, directory);
+        File tempFile =  File.createTempFile(prefix + bytesToHex(bytes), suffix, directory);
+        tempFile.deleteOnExit();
+        return tempFile;
     }
 
     public static File createTempDirectory(final String prefix, final String suffix) throws IOException {
