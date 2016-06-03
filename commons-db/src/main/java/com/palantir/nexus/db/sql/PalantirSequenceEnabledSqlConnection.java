@@ -13,8 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.palantir.util;
+package com.palantir.nexus.db.sql;
 
-public interface VisitorCheckedException<T, K extends Exception> {
-    public void visit(T obj) throws K;
+import com.palantir.exception.PalantirSqlException;
+
+public interface PalantirSequenceEnabledSqlConnection extends PalantirSqlConnection {
+    long selectID(String sequenceName) throws PalantirSqlException;
+    long [] selectIDs(String sequenceName, int num) throws PalantirSqlException;
 }
