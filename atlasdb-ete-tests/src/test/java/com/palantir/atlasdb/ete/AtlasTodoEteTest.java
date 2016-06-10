@@ -17,13 +17,14 @@
 package com.palantir.atlasdb.ete;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasItem;
 
 import static com.google.common.base.Throwables.propagate;
 
 import javax.net.ssl.SSLSocketFactory;
 
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.rules.RuleChain;
 
@@ -70,9 +71,34 @@ public class AtlasTodoEteTest {
     shouldBeAbleToWriteAndListTodos() {
         AtlasTodos todoClient = createTodoClient();
 
-        todoClient.addTodo(TODO);
-        assertThat(todoClient.listTodos(), contains(TODO));
+        for (int i=1; i <= 50; i++) {
+            System.out.println("Iteration number " + i);
+            ImmutableTodo todo = ImmutableTodo.of("stuff " + i);
+            todoClient.addTodo(todo);
+            assertThat(todoClient.listTodos(), hasItem(todo));
+            System.out.println("OK as far as " + i);
+        }
     }
+
+    @Test public void
+    shouldBeAbleToAgreeLeadershipAfterSplitAndRead() throws InterruptedException {
+        AtlasTodos todoClient = createTodoClient();
+
+        for (int i=1; i <= 50; i++) {
+            ImmutableTodo todo = ImmutableTodo.of("stuff " + i);
+            todoClient.addTodo(todo);
+        }
+
+        // Partition the leader
+        System.out.println("Now, time to switch off the docker machine.");
+
+
+        while (true) {
+            todoClient.listTodos();
+            Thread.sleep(10);
+        }
+    }
+
 
     private AtlasTodos createTodoClient() {
         try {
