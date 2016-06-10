@@ -49,6 +49,8 @@ import com.palantir.lock.LockRequest;
 import com.palantir.lock.RemoteLockService;
 import com.palantir.timestamp.TimestampService;
 
+import feign.RetryableException;
+
 /* package */ class SnapshotTransactionManager extends AbstractLockAwareTransactionManager {
     private final static int NUM_RETRIES = 10;
 
@@ -136,9 +138,11 @@ import com.palantir.timestamp.TimestampService;
         }
         try {
             ImmutableList<LockRefreshToken> allTokens =
-                    ImmutableList.<LockRefreshToken> builder().add(lock).addAll(lockTokens).build();
+                    ImmutableList.<LockRefreshToken>builder().add(lock).addAll(lockTokens).build();
             SnapshotTransaction t = createTransaction(immutableLockTs, startTimestampSupplier, allTokens);
             return new RawTransaction(t, lock);
+        } catch (RetryableException r) {
+            throw r;
         } catch (Throwable t) {
             lockService.unlock(lock);
             Throwables.throwIfInstance(t, Error.class);
@@ -269,7 +273,7 @@ import com.palantir.timestamp.TimestampService;
     public KeyValueService getKeyValueService() {
         return keyValueService;
     }
-    
+
     public TimestampService getTimestampService() {
         return timestampService;
     }
