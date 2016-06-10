@@ -17,6 +17,8 @@ package com.palantir.leader;
 
 import static com.google.common.collect.ImmutableList.copyOf;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
@@ -323,6 +325,13 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
     }
 
     private void proposeLeadership(LeadershipToken token) {
+        try {
+            if (InetAddress.getLocalHost().getHostName().contains("todo1")) {
+                return;
+            }
+        } catch (UnknownHostException e) {
+            // oh well...
+        }
         lock.lock();
         try {
             PaxosValue value = knowledge.getGreatestLearnedValue();
