@@ -604,11 +604,14 @@ public final class SqlConnectionHelper {
             // We have noticed that TRUNCATE can fail silently on Oracle SE 11.2.0.4.0
             // So we must always confirm
             if (!isTableEmpty(c, tempTable)) {
-                log.error("Could not clear temp table {} using style TRUNCATE.  Retrying.", tempTable);
+                log.error(
+                        String.format("On first attempt, did not clear temp table %s using style TRUNCATE.  Retrying.",
+                        tempTable));
                 attemptToClearTempTable(c, tempTable, clearStyle);
                 if (!isTableEmpty(c, tempTable)) {
                     throw new RuntimeException(
-                            "Could not clear temp table {} using style TRUNCATE after multiple attempts.", tempTable);
+                            String.format("On multiple attempts with clear style TRUNCATE, did not clear temp table %s",
+                                    tempTable));
                 }
             }
         } else {
