@@ -34,6 +34,7 @@ import com.palantir.atlasdb.factory.TransactionManagers.Environment;
 import com.palantir.atlasdb.http.AtlasDbHttpClients;
 import com.palantir.atlasdb.http.NotCurrentLeaderExceptionMapper;
 import com.palantir.leader.LeaderElectionService;
+import com.palantir.paxos.Paxos;
 import com.palantir.leader.PaxosLeaderElectionService;
 import com.palantir.leader.PingableLeader;
 import com.palantir.paxos.PaxosAcceptor;
@@ -80,11 +81,8 @@ public class Leaders {
                 executor);
 
         PaxosLeaderElectionService leader = new PaxosLeaderElectionService(
-                proposer,
-                ourLearner,
+                new Paxos(proposer, ourLearner, ImmutableList.copyOf(acceptors), ImmutableList.copyOf(learners)),
                 otherLeaders,
-                ImmutableList.copyOf(acceptors),
-                ImmutableList.copyOf(learners),
                 executor,
                 config.pingRateMs(),
                 config.randomWaitBeforeProposingLeadershipMs(),

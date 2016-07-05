@@ -42,6 +42,7 @@ import com.palantir.atlasdb.timelock.server.modules.qualifiers.All;
 import com.palantir.atlasdb.timelock.server.modules.qualifiers.Local;
 import com.palantir.atlasdb.timelock.server.modules.qualifiers.Remote;
 import com.palantir.leader.LeaderElectionService;
+import com.palantir.paxos.Paxos;
 import com.palantir.leader.PaxosLeaderElectionService;
 import com.palantir.leader.PingableLeader;
 import com.palantir.paxos.PaxosAcceptor;
@@ -64,11 +65,8 @@ public class LeaderElectionModule {
             @Remote Map<PingableLeader, HostAndPort> potentialLeaders) {
 
         return new PaxosLeaderElectionService(
-                proposer,
-                learner,
+                new Paxos(proposer, learner, acceptors, learners),
                 potentialLeaders,
-                acceptors,
-                learners,
                 Executors.newSingleThreadExecutor(),
                 config.pingRateMs(),
                 config.randomWaitBeforeProposingLeadershipMs(),

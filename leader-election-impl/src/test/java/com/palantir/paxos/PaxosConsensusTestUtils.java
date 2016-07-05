@@ -79,11 +79,8 @@ public final class PaxosConsensusTestUtils {
                     quorumSize,
                     executor);
             PaxosLeaderElectionService leader = new PaxosLeaderElectionService(
-                    proposer,
-                    learners.get(i),
-                    ImmutableMap.<PingableLeader, HostAndPort>of(),
-                    ImmutableList.<PaxosAcceptor> copyOf(acceptors),
-                    ImmutableList.<PaxosLearner> copyOf(learners),
+                    new Paxos(proposer, learners.get(i), ImmutableList.copyOf(acceptors), ImmutableList.copyOf(learners)),
+                    ImmutableMap.of(),
                     executor,
                     0L, 0L, 0L);
             leaders.add(SimulatingFailingServerProxy.newProxyInstance(

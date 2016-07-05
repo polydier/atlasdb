@@ -51,6 +51,7 @@ import com.google.common.collect.Maps;
 import com.google.common.net.HostAndPort;
 import com.palantir.common.base.Throwables;
 import com.palantir.paxos.ImmutablePaxosKey;
+import com.palantir.paxos.Paxos;
 import com.palantir.paxos.PaxosAcceptor;
 import com.palantir.paxos.PaxosKey;
 import com.palantir.paxos.PaxosLearner;
@@ -89,21 +90,18 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
 
     final ConcurrentMap<String, PingableLeader> uuidToServiceCache = Maps.newConcurrentMap();
 
-    public PaxosLeaderElectionService(PaxosProposer proposer,
-                                      PaxosLearner knowledge,
+    public PaxosLeaderElectionService(Paxos paxos,
                                       Map<PingableLeader, HostAndPort> potentialLeadersToHosts,
-                                      List<PaxosAcceptor> acceptors,
-                                      List<PaxosLearner> learners,
                                       ExecutorService executor,
                                       long updatePollingWaitInMs,
                                       long randomWaitBeforeProposingLeadership,
                                       long leaderPingResponseWaitMs) {
-        this.proposer = proposer;
-        this.knowledge = knowledge;
+        this.proposer = paxos.getProposer();
+        this.knowledge = paxos.getKnowledge();
         // XXX This map uses something that may be proxied as a key! Be very careful if making a new map from this.
         this.potentialLeadersToHosts = Collections.unmodifiableMap(potentialLeadersToHosts);
-        this.acceptors = copyOf(acceptors);
-        this.learners = copyOf(learners);
+        this.acceptors = copyOf(paxos.getAcceptors());
+        this.learners = copyOf(paxos.getLearners());
         this.executor = executor;
         this.updatePollingRateInMs = updatePollingWaitInMs;
         this.randomWaitBeforeProposingLeadership = randomWaitBeforeProposingLeadership;
