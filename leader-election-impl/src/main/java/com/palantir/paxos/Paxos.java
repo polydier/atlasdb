@@ -77,12 +77,15 @@ public class Paxos {
             return Optional.of(true);
         }
 
-        for (PaxosResponse paxosResponse : responses) {
-            if (paxosResponse != null && !paxosResponse.isSuccessful()) {
-                return Optional.of(false);
-            }
+        if (anyAcceptorHasALaterKnownValue(responses)) {
+            return Optional.of(false);
         }
         return Optional.absent();
+    }
+
+    private boolean anyAcceptorHasALaterKnownValue(List<PaxosResponse> responses) {
+        return responses.stream().anyMatch(
+                response -> response != null && !response.isSuccessful());
     }
 
     /**
