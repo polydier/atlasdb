@@ -134,13 +134,6 @@ public class Paxos {
         return acceptors;
     }
 
-    /**
-     * Confirms if a given sequence is still the newest according to a given acceptor
-     *
-     * @param acceptor the acceptor to check against
-     * @param seq the instance of paxos in question
-     * @return a paxos response that either confirms the leader or nacks
-     */
     private PaxosResponse hasNoLaterKnownValue(PaxosAcceptor acceptor, long seq) {
         return new PaxosResponseImpl(seq >= acceptor.getLatestSequencePreparedOrAccepted());
     }
