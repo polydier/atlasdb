@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 
 import com.google.common.base.Defaults;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 
@@ -55,6 +56,33 @@ public class Paxos {
 
     public void propose(PaxosKey key, @Nullable byte[] proposalValue) throws PaxosRoundFailureException {
         proposer.propose(key, proposalValue);
+    }
+
+    public Optional<Boolean> isGreatestLearnedGlobalValue(long seq) {
+        List<PaxosResponse> responses = PaxosQuorumChecker.<PaxosAcceptor, PaxosResponse>collectQuorumResponses(
+                ImmutableList.copyOf(acceptors),
+                new Function<PaxosAcceptor, PaxosResponse>() {
+                    @Override
+                    @Nullable
+                    public PaxosResponse apply(@Nullable PaxosAcceptor acceptor) {
+                        return hasNoLaterKnownValue(acceptor, seq);
+                    }
+                },
+                getQuorumSize(),
+                executor,
+                PaxosQuorumChecker.DEFAULT_REMOTE_REQUESTS_TIMEOUT_IN_SECONDS,
+                true);
+
+        if (PaxosQuorumChecker.hasQuorum(responses, getQuorumSize())) {
+            return Optional.of(true);
+        }
+
+        for (PaxosResponse paxosResponse : responses) {
+            if (paxosResponse != null && !paxosResponse.isSuccessful()) {
+                return Optional.of(false);
+            }
+        }
+        return Optional.absent();
     }
 
     /**
@@ -95,11 +123,22 @@ public class Paxos {
         return learned;
     }
 
-    public int getQuorumSize() {
+    private int getQuorumSize() {
         return proposer.getQuorumSize();
     }
 
     public List<PaxosAcceptor> getAcceptors() {
         return acceptors;
+    }
+
+    /**
+     * Confirms if a given sequence is still the newest according to a given acceptor
+     *
+     * @param acceptor the acceptor to check against
+     * @param seq the instance of paxos in question
+     * @return a paxos response that either confirms the leader or nacks
+     */
+    private PaxosResponse hasNoLaterKnownValue(PaxosAcceptor acceptor, long seq) {
+        return new PaxosResponseImpl(seq >= acceptor.getLatestSequencePreparedOrAccepted());
     }
 }

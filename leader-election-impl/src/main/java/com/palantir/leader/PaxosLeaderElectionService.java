@@ -521,43 +521,12 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
     }
 
     private StillLeadingStatus checkQuorum(final long seq) {
-        List<PaxosResponse> responses = PaxosQuorumChecker.<PaxosAcceptor, PaxosResponse>collectQuorumResponses(
-                ImmutableList.copyOf(paxos.getAcceptors()),
-                new Function<PaxosAcceptor, PaxosResponse>() {
-                    @Override
-                    @Nullable
-                    public PaxosResponse apply(@Nullable PaxosAcceptor acceptor) {
-                        return confirmLeader(acceptor, seq);
-                    }
-                },
-                paxos.getQuorumSize(),
-                executor,
-                PaxosQuorumChecker.DEFAULT_REMOTE_REQUESTS_TIMEOUT_IN_SECONDS,
-                true);
-        if (PaxosQuorumChecker.hasQuorum(responses, paxos.getQuorumSize())) {
-            // If we have a quorum we are good to go
-            return StillLeadingStatus.LEADING;
+        Optional<Boolean> status = paxos.isGreatestLearnedGlobalValue(seq);
+        if (status.isPresent()) {
+            return status.get() ? StillLeadingStatus.LEADING : StillLeadingStatus.NOT_LEADING;
+        } else {
+            return StillLeadingStatus.NO_QUORUM;
         }
-
-        for (PaxosResponse paxosResponse : responses) {
-            if (paxosResponse != null && !paxosResponse.isSuccessful()) {
-                // If we have a nack then someone has prepared or accepted a new seq.
-                // In this case we are most likely not the leader
-                return StillLeadingStatus.NOT_LEADING;
-            }
-        }
-        return StillLeadingStatus.NO_QUORUM;
-    }
-
-    /**
-     * Confirms if a given sequence is still the newest according to a given acceptor
-     *
-     * @param acceptor the acceptor to check against
-     * @param seq the instance of paxos in question
-     * @return a paxos response that either confirms the leader or nacks
-     */
-    private PaxosResponse confirmLeader(PaxosAcceptor acceptor, long seq) {
-        return new PaxosResponseImpl(seq >= acceptor.getLatestSequencePreparedOrAccepted());
     }
 
     public ImmutableList<PaxosAcceptor> getAcceptors() {
