@@ -81,7 +81,7 @@ public class Leaders {
                 executor);
 
         PaxosLeaderElectionService leader = new PaxosLeaderElectionService(
-                new Paxos(proposer, ourLearner, ImmutableList.copyOf(acceptors), ImmutableList.copyOf(learners)),
+                new Paxos(proposer, ourLearner, ImmutableList.copyOf(acceptors), ImmutableList.copyOf(learners), executor),
                 otherLeaders,
                 executor,
                 config.pingRateMs(),

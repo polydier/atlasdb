@@ -26,11 +26,9 @@ import org.apache.commons.io.FileUtils;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.net.HostAndPort;
 import com.palantir.common.concurrent.PTExecutors;
 import com.palantir.leader.LeaderElectionService;
 import com.palantir.leader.PaxosLeaderElectionService;
-import com.palantir.leader.PingableLeader;
 import com.palantir.leader.proxy.SimulatingFailingServerProxy;
 import com.palantir.leader.proxy.ToggleableExceptionProxy;
 
@@ -79,7 +77,7 @@ public final class PaxosConsensusTestUtils {
                     quorumSize,
                     executor);
             PaxosLeaderElectionService leader = new PaxosLeaderElectionService(
-                    new Paxos(proposer, learners.get(i), ImmutableList.copyOf(acceptors), ImmutableList.copyOf(learners)),
+                    new Paxos(proposer, learners.get(i), ImmutableList.copyOf(acceptors), ImmutableList.copyOf(learners), executor),
                     ImmutableMap.of(),
                     executor,
                     0L, 0L, 0L);

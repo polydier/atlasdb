@@ -28,6 +28,7 @@ import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.inject.Singleton;
@@ -64,10 +65,11 @@ public class LeaderElectionModule {
             @All List<PaxosLearner> learners,
             @Remote Map<PingableLeader, HostAndPort> potentialLeaders) {
 
+        ExecutorService executor = Executors.newSingleThreadExecutor();
         return new PaxosLeaderElectionService(
-                new Paxos(proposer, learner, acceptors, learners),
+                new Paxos(proposer, learner, acceptors, learners, executor),
                 potentialLeaders,
-                Executors.newSingleThreadExecutor(),
+                executor,
                 config.pingRateMs(),
                 config.randomWaitBeforeProposingLeadershipMs(),
                 config.leaderPingResponseWaitMs());

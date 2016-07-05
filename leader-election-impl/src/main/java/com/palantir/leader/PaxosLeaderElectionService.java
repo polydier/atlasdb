@@ -15,8 +15,6 @@
  */
 package com.palantir.leader;
 
-import static com.google.common.collect.ImmutableList.copyOf;
-
 import java.util.AbstractMap;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +42,6 @@ import com.google.common.base.Defaults;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableCollection;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -54,13 +51,10 @@ import com.palantir.paxos.ImmutablePaxosKey;
 import com.palantir.paxos.Paxos;
 import com.palantir.paxos.PaxosAcceptor;
 import com.palantir.paxos.PaxosKey;
-import com.palantir.paxos.PaxosLearner;
-import com.palantir.paxos.PaxosProposer;
 import com.palantir.paxos.PaxosQuorumChecker;
 import com.palantir.paxos.PaxosResponse;
 import com.palantir.paxos.PaxosResponseImpl;
 import com.palantir.paxos.PaxosRoundFailureException;
-import com.palantir.paxos.PaxosUpdate;
 import com.palantir.paxos.PaxosValue;
 
 /**
@@ -74,13 +68,9 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
     private static final Logger leaderLog = LoggerFactory.getLogger("leadership");
 
     private final ReentrantLock lock;
-
-    final PaxosProposer proposer;
-    final PaxosLearner knowledge;
+    private final Paxos paxos;
 
     final Map<PingableLeader, HostAndPort> potentialLeadersToHosts;
-    final ImmutableList<PaxosAcceptor> acceptors;
-    final ImmutableList<PaxosLearner> learners;
 
     final long updatePollingRateInMs;
     final long randomWaitBeforeProposingLeadership;
@@ -96,12 +86,9 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
                                       long updatePollingWaitInMs,
                                       long randomWaitBeforeProposingLeadership,
                                       long leaderPingResponseWaitMs) {
-        this.proposer = paxos.getProposer();
-        this.knowledge = paxos.getKnowledge();
+        this.paxos = paxos;
         // XXX This map uses something that may be proxied as a key! Be very careful if making a new map from this.
         this.potentialLeadersToHosts = Collections.unmodifiableMap(potentialLeadersToHosts);
-        this.acceptors = copyOf(paxos.getAcceptors());
-        this.learners = copyOf(paxos.getLearners());
         this.executor = executor;
         this.updatePollingRateInMs = updatePollingWaitInMs;
         this.randomWaitBeforeProposingLeadership = randomWaitBeforeProposingLeadership;
@@ -112,7 +99,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
     @Override
     public LeadershipToken blockOnBecomingLeader() throws InterruptedException {
         for (;;) {
-            PaxosValue greatestLearned = knowledge.getGreatestLearnedValue();
+            PaxosValue greatestLearned = paxos.getGreatestLearnedLocalValue();
             LeadershipToken token = genTokenFromValue(greatestLearned);
 
             if (isLastConfirmedLeader(greatestLearned)) {
@@ -132,7 +119,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
                 }
             }
 
-            boolean learnedNewState = updateLearnedStateFromPeers(greatestLearned);
+            boolean learnedNewState = paxos.updateLearnedStateFromPeers(greatestLearned);
             if (learnedNewState) {
                 continue;
             }
@@ -189,7 +176,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
     }
 
     private Optional<PingableLeader> getSuspectedLeader(boolean useNetwork) {
-        PaxosValue value = knowledge.getGreatestLearnedValue();
+        PaxosValue value = paxos.getGreatestLearnedLocalValue();
         if (value == null) {
             return Optional.absent();
         }
@@ -315,18 +302,18 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
 
     @Override
     public String getUUID() {
-        return proposer.getUUID();
+        return paxos.getProposerUuid();
     }
 
     @Override
     public boolean ping() {
-        return isLastConfirmedLeader(knowledge.getGreatestLearnedValue());
+        return isLastConfirmedLeader(paxos.getGreatestLearnedLocalValue());
     }
 
     private void proposeLeadership(LeadershipToken token) {
         lock.lock();
         try {
-            PaxosValue value = knowledge.getGreatestLearnedValue();
+            PaxosValue value = paxos.getGreatestLearnedLocalValue();
 
             LeadershipToken expectedToken = genTokenFromValue(value);
             if (!expectedToken.sameAs(token)) {
@@ -344,7 +331,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
 
             leaderLog.info("Proposing leadership with sequence number " + seq);
             PaxosKey key = ImmutablePaxosKey.builder().seq(seq).build();
-            proposer.propose(key, getUUID().getBytes(Charsets.UTF_8));
+            paxos.propose(key, getUUID().getBytes(Charsets.UTF_8));
         } catch (PaxosRoundFailureException e) {
             // We have failed trying to become the leader.
             leaderLog.warn("Leadership was not gained", e);
@@ -515,7 +502,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
     private StillLeadingStatus isStillLeadingInternal(LeadershipToken token) {
         Preconditions.checkNotNull(token);
 
-        final PaxosValue mostRecentValue = knowledge.getGreatestLearnedValue();
+        final PaxosValue mostRecentValue = paxos.getGreatestLearnedLocalValue();
         final long seq = mostRecentValue.getRound().seq();
         final LeadershipToken mostRecentToken = genTokenFromValue(mostRecentValue);
 
@@ -530,8 +517,12 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
         }
 
         // check if node still has quorum
-        List<PaxosResponse> responses = PaxosQuorumChecker.<PaxosAcceptor, PaxosResponse> collectQuorumResponses(
-                acceptors,
+        return checkQuorum(seq);
+    }
+
+    private StillLeadingStatus checkQuorum(final long seq) {
+        List<PaxosResponse> responses = PaxosQuorumChecker.<PaxosAcceptor, PaxosResponse>collectQuorumResponses(
+                ImmutableList.copyOf(paxos.getAcceptors()),
                 new Function<PaxosAcceptor, PaxosResponse>() {
                     @Override
                     @Nullable
@@ -539,11 +530,11 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
                         return confirmLeader(acceptor, seq);
                     }
                 },
-                proposer.getQuorumSize(),
+                paxos.getQuorumSize(),
                 executor,
                 PaxosQuorumChecker.DEFAULT_REMOTE_REQUESTS_TIMEOUT_IN_SECONDS,
                 true);
-        if (PaxosQuorumChecker.hasQuorum(responses, proposer.getQuorumSize())) {
+        if (PaxosQuorumChecker.hasQuorum(responses, paxos.getQuorumSize())) {
             // If we have a quorum we are good to go
             return StillLeadingStatus.LEADING;
         }
@@ -570,7 +561,7 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
     }
 
     public ImmutableList<PaxosAcceptor> getAcceptors() {
-        return acceptors;
+        return ImmutableList.copyOf(paxos.getAcceptors());
     }
 
     private boolean isLastConfirmedLeader(PaxosValue value) {
@@ -578,44 +569,8 @@ public class PaxosLeaderElectionService implements PingableLeader, LeaderElectio
             return false;
         }
         String valueLeaderUuid = new String(value.getData(), Charsets.UTF_8);
-        return valueLeaderUuid.equals(proposer.getUUID());
+        return valueLeaderUuid.equals(paxos.getProposerUuid());
     }
 
-    /**
-     * Queries all other learners for unknown learned values
-     *
-     * @param numPeersToQuery number of peer learners to query for updates
-     * @returns true if new state was learned, otherwise false
-     */
-    public boolean updateLearnedStateFromPeers(PaxosValue greatestLearned) {
-        final long nextToLearnSeq = greatestLearned != null ? greatestLearned.getRound().seq() + 1 : Defaults.defaultValue(long.class);
-        List<PaxosUpdate> updates = PaxosQuorumChecker.<PaxosLearner, PaxosUpdate> collectQuorumResponses(
-                learners,
-                new Function<PaxosLearner, PaxosUpdate>() {
-                    @Override
-                    @Nullable
-                    public PaxosUpdate apply(@Nullable PaxosLearner learner) {
-                        return new PaxosUpdate(
-                                copyOf(learner.getLearnedValuesSince(nextToLearnSeq)));
-                    }
-                },
-                proposer.getQuorumSize(),
-                executor,
-                PaxosQuorumChecker.DEFAULT_REMOTE_REQUESTS_TIMEOUT_IN_SECONDS);
 
-        // learn the state accumulated from peers
-        boolean learned = false;
-        for (PaxosUpdate update : updates) {
-            ImmutableCollection<PaxosValue> values = update.getValues();
-            for (PaxosValue value : values) {
-                PaxosValue currentLearnedValue = knowledge.getLearnedValue(value.getRound().seq());
-                if (currentLearnedValue == null) {
-                    knowledge.learn(value.getRound().seq(), value);
-                    learned = true;
-                }
-            }
-        }
-
-        return learned;
-    }
 }
