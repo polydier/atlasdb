@@ -19,8 +19,6 @@ package com.palantir.atlasdb.performance.backend;
 
 import com.palantir.atlasdb.keyvalue.api.KeyValueService;
 
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
-
 /**
  * The physical store backing the AtlasDB key-value service. Any new physical store should extend this class (currently only Postgres is
  * implemented).
@@ -36,7 +34,7 @@ public abstract class PhysicalStore implements AutoCloseable {
             case ORACLE:
             case CASSANDRA:
             default:
-                throw new NotImplementedException();
+                throw new UnsupportedOperationException();
         }
     }
 

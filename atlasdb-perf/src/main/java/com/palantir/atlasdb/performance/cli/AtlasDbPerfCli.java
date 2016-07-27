@@ -26,14 +26,19 @@ import java.util.stream.Collectors;
 import javax.inject.Inject;
 
 import org.openjdk.jmh.annotations.Benchmark;
+import org.openjdk.jmh.profile.GCProfiler;
+import org.openjdk.jmh.profile.StackProfiler;
 import org.openjdk.jmh.results.RunResult;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.options.ChainedOptionsBuilder;
+import org.openjdk.jmh.runner.options.Options;
 import org.openjdk.jmh.runner.options.OptionsBuilder;
+import org.openjdk.jmh.runner.options.TimeValue;
 import org.reflections.Reflections;
 import org.reflections.scanners.MethodAnnotationsScanner;
 
 import com.palantir.atlasdb.performance.BenchmarkParam;
+import com.palantir.atlasdb.performance.profiler.FlightRecorderProfiler;
 import com.palantir.atlasdb.performance.PerformanceResults;
 
 import io.airlift.airline.Arguments;
@@ -90,11 +95,21 @@ public class AtlasDbPerfCli {
                 .forks(1)
                 .param(BenchmarkParam.BACKEND.getKey(), cli.backend);
 
-        if (cli.tests != null) {
-            cli.tests.stream().forEach(testName -> optBuilder.include(testName));
+        if (cli.tests == null) {
+            getAllBenchmarks().forEach(b -> optBuilder.include(".*" + b));
+        } else {
+            cli.tests.forEach(b -> optBuilder.include(".*" + b));
         }
 
-        Collection<RunResult> results = new Runner(optBuilder.build()).run();
+        optBuilder.addProfiler(GCProfiler.class);
+        optBuilder.addProfiler(StackProfiler.class);
+        optBuilder.addProfiler(FlightRecorderProfiler.class);
+        optBuilder.warmupTime(TimeValue.seconds(5));
+        optBuilder.measurementTime(TimeValue.seconds(10));
+        optBuilder.threads(4);
+
+        Options build = optBuilder.build();
+        Collection<RunResult> results = new Runner(build).run();
         if (cli.outputFile != null) {
             new PerformanceResults(results).writeToFile(new File(cli.outputFile));
         }

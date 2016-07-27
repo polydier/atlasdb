@@ -1,0 +1,12 @@
+#!/bin/bash
+
+JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.8.0_102.jdk/Contents/Home
+JAR=$(find "./atlasdb-perf/build/artifacts/" -name "atlasdb-perf-*-jmh.jar")
+
+./gradlew :atlasdb-perf:clean :atlasdb-perf:jmhJar && \
+jar -tvf "${JAR}" | grep Benchmark && \
+${JAVA_HOME}/bin/java \
+    -server \
+    -jar "${JAR}" \
+          --backend POSTGRES \
+          ".*Benchmark.*"
