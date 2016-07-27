@@ -146,6 +146,7 @@ public class BatchedDbReadTable extends AbstractDbReadTable {
     protected ClosableIterator<AgnosticLightResultRow> run(FullQuery query) {
         final SqlConnection freshConn = conns.getFresh();
         try {
+            // TODO (davids) use registered queries
             final AgnosticLightResultSet results = freshConn.selectLightResultSetUnregisteredQuery(
                     query.getQuery(), query.getArgs());
             return ClosableIterators.wrap(results.iterator(), new Closeable() {
