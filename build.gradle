@@ -90,3 +90,7 @@ allprojects {
         systemProperty 'RUNNING_IN_GRADLE', 'true'
     }
 }
+
+test {
+    forkEvery 2
+}
