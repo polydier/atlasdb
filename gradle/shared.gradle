@@ -79,6 +79,13 @@ afterEvaluate {
 }
 
 test {
+    reports {
+        junitXml.enabled true
+        junitXml.outputPerTestCase true
+
+        html.enabled = true
+    }
+
     testLogging {
         showExceptions true
         exceptionFormat "full"
