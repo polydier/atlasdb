@@ -26,11 +26,16 @@ import com.palantir.atlasdb.keyvalue.api.KeyValueService;
 import com.palantir.atlasdb.keyvalue.api.TableReference;
 import com.palantir.atlasdb.schema.KeyValueServiceMigrator.KvsMigrationMessageLevel;
 import com.palantir.atlasdb.schema.KeyValueServiceMigrator.KvsMigrationMessageProcessor;
+import com.palantir.atlasdb.schema.generated.SweepPriorityTable;
+import com.palantir.atlasdb.schema.generated.SweepProgressTable;
 
 public final class KeyValueServiceMigrators {
     private KeyValueServiceMigrators() {
         // Utility class
     }
+
+    public static final TableReference SWEEP_PRIORITY_TABLE = TableReference.create(SweepSchema.INSTANCE.getNamespace(), SweepPriorityTable.getRawTableName());
+    public static final TableReference SWEEP_PROGRESS_TABLE = TableReference.create(SweepSchema.INSTANCE.getNamespace(), SweepProgressTable.getRawTableName());
 
     /**
      * Tables that are eligible for migration.
@@ -48,6 +53,9 @@ public final class KeyValueServiceMigrators {
         Set<TableReference> tableNames = Sets.newHashSet(kvs.getAllTableNames());
         tableNames.removeAll(AtlasDbConstants.hiddenTables);
         tableNames.removeAll(unmigratableTables);
+        //remove sweep tables
+        tableNames.remove(SWEEP_PRIORITY_TABLE);
+        tableNames.remove(SWEEP_PROGRESS_TABLE);
         return tableNames;
     }
 
